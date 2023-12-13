@@ -1,0 +1,6 @@
+opencv-python
+numpy
+streamlit
+collections
+scipy
+base64
