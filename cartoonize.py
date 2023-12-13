@@ -3,7 +3,7 @@ import numpy as np
 import streamlit as st
 from collections import defaultdict
 from scipy import stats
-import base64
+import base64  # Add this line to import the base64 module
 
 # Functions for cartoonization
 
@@ -64,7 +64,7 @@ def K_histogram(hist):
             C = np.array(sorted(new_C))
     return C
 
-def caart(img, bilateral_filter_value, canny_threshold1, canny_threshold2, erode_kernel_size, bw_filter):
+def caart(img, bilateral_filter_value, canny_threshold1, canny_threshold2, erode_kernel_size):
     kernel = np.ones((2, 2), np.uint8)
     output = np.array(img)
     x, y, c = output.shape
@@ -94,10 +94,7 @@ def caart(img, bilateral_filter_value, canny_threshold1, canny_threshold2, erode
         index = np.argmin(np.abs(channel[:, np.newaxis] - C[i]), axis=1)
         output[:, i] = C[i][index]
     output = output.reshape((x, y, c))
-    if bw_filter:
-        output = cv2.cvtColor(output[:, :, 0], cv2.COLOR_GRAY2RGB)
-    else:
-        output = cv2.cvtColor(output, cv2.COLOR_HSV2RGB)
+    output = cv2.cvtColor(output, cv2.COLOR_HSV2RGB)
 
     contours, _ = cv2.findContours(edge, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cv2.drawContours(output, contours, -1, 0, thickness=1)
@@ -118,8 +115,6 @@ def main():
     canny_threshold1 = st.sidebar.slider("Canny Threshold 1", 0, 255, 100)
     canny_threshold2 = st.sidebar.slider("Canny Threshold 2", 0, 255, 200)
     erode_kernel_size = st.sidebar.slider("Erode Kernel Size", 1, 5, 2)
-    bw_filter = st.sidebar.checkbox("Black and White Filter", False)
-    rotation_angle = st.sidebar.slider("Rotation Angle", -180, 180, 0)  # Add rotation slider
 
     start_stop_button = st.button("Start/Stop Video")
 
@@ -130,21 +125,14 @@ def main():
         if not ret:
             break
 
-        # Apply rotation to the frame
-        rows, cols, _ = frame.shape
-        M = cv2.getRotationMatrix2D((cols / 2, rows / 2), rotation_angle, 1)
-        frame = cv2.warpAffine(frame, M, (cols, rows))
-
-        # Apply cartoonization to the rotated frame
-        cartoon_frame = caart(frame, bilateral_filter_value, canny_threshold1, canny_threshold2, erode_kernel_size, bw_filter)
-
         if out is None:
             # Initialize VideoWriter if not done yet
-            out = cv2.VideoWriter('cartoonizing-master/out.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (cartoon_frame.shape[1], cartoon_frame.shape[0]))
+            out = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (frame.shape[1], frame.shape[0]))
+
+        cartoon_frame = caart(frame, bilateral_filter_value, canny_threshold1, canny_threshold2, erode_kernel_size)
 
         out.write(cartoon_frame)
 
-        # Display the rotated and cartoonized frame
         stframe.image(cartoon_frame, channels="BGR")
 
     # Release resources when the loop is stopped
@@ -157,7 +145,7 @@ def main():
     download_button = st.button("Download Video")
 
     if download_button:
-        st.markdown(get_binary_file_downloader_html('cartoonizing-master/out.mp4', 'Video'), unsafe_allow_html=True)
+        st.markdown(get_binary_file_downloader_html('out.mp4', 'Video'), unsafe_allow_html=True)
 
 # Function to generate a download link for the recorded video
 def get_binary_file_downloader_html(file_path, file_label='File'):
@@ -167,5 +155,5 @@ def get_binary_file_downloader_html(file_path, file_label='File'):
     href = f'<a href="data:file/mp4;base64,{b64}" download="{file_path}">Download {file_label}</a>'
     return href
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     main()
